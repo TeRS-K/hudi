@@ -34,6 +34,7 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -53,6 +54,7 @@ import static org.junit.jupiter.api.Assertions.fail;
  * Unit tests {@link HoodieRowCreateHandle}.
  */
 @SuppressWarnings("checkstyle:LineLength")
+@Disabled("enable after supporting HoodieInternalRowOrcWriter.")
 public class TestHoodieRowCreateHandle extends HoodieClientTestHarness {
 
   private static final Random RANDOM = new Random();

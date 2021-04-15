@@ -37,6 +37,7 @@ import org.junit.jupiter.api.io.TempDir
 import java.time.Instant
 import java.util.Collections
 
+@Disabled("enable after spark integration with ORC is completed")
 class TestDataSourceForBootstrap {
 
   var spark: SparkSession = _

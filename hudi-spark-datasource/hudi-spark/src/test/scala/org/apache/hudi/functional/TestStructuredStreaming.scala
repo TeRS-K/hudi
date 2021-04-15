@@ -42,6 +42,7 @@ import scala.concurrent.{Await, Future}
 /**
  * Basic tests on the spark datasource for structured streaming sink
  */
+@Disabled("enable after spark integration with ORC is completed")
 class TestStructuredStreaming extends HoodieClientTestBase {
   private val log = LogManager.getLogger(getClass)
   var spark: SparkSession = null

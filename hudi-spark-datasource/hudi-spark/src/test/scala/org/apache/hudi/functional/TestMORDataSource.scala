@@ -40,6 +40,7 @@ import scala.collection.JavaConversions._
 /**
  * Tests on Spark DataSource for MOR table.
  */
+@Disabled("enable after spark integration with ORC is completed")
 class TestMORDataSource extends HoodieClientTestBase {
 
   var spark: SparkSession = null

@@ -23,6 +23,7 @@ import org.apache.hudi.avro.HoodieAvroUtils;
 import org.apache.hudi.avro.HoodieAvroWriteSupport;
 import org.apache.hudi.common.bloom.BloomFilter;
 import org.apache.hudi.common.engine.TaskContextSupplier;
+import org.apache.hudi.common.model.HoodieFileFormat;
 import org.apache.hudi.common.model.HoodieLogFile;
 import org.apache.hudi.common.model.HoodieRecord;
 import org.apache.hudi.common.model.HoodieRecordLocation;
@@ -34,6 +35,9 @@ import org.apache.hudi.common.testutils.FileCreateUtils;
 import org.apache.hudi.common.testutils.HoodieTestTable;
 import org.apache.hudi.config.HoodieStorageConfig;
 import org.apache.hudi.io.storage.HoodieAvroParquetConfig;
+import org.apache.hudi.io.storage.HoodieFileWriter;
+import org.apache.hudi.io.storage.HoodieOrcConfig;
+import org.apache.hudi.io.storage.HoodieOrcWriter;
 import org.apache.hudi.io.storage.HoodieParquetWriter;
 
 import org.apache.avro.Schema;
@@ -44,6 +48,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
+import org.apache.orc.CompressionKind;
 import org.apache.parquet.avro.AvroSchemaConverter;
 import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
@@ -84,24 +89,39 @@ public class HoodieWriteableTestTable extends HoodieTestTable {
     FileCreateUtils.createPartitionMetaFile(basePath, partition);
     String fileName = baseFileName(currentInstantTime, fileId);
 
-    HoodieAvroWriteSupport writeSupport = new HoodieAvroWriteSupport(
-        new AvroSchemaConverter().convert(schema), schema, filter);
-    HoodieAvroParquetConfig config = new HoodieAvroParquetConfig(writeSupport, CompressionCodecName.GZIP,
-        ParquetWriter.DEFAULT_BLOCK_SIZE, ParquetWriter.DEFAULT_PAGE_SIZE, 120 * 1024 * 1024,
-        new Configuration(), Double.parseDouble(HoodieStorageConfig.DEFAULT_STREAM_COMPRESSION_RATIO));
-    try (HoodieParquetWriter writer = new HoodieParquetWriter(
-        currentInstantTime,
-        new Path(Paths.get(basePath, partition, fileName).toString()),
-        config, schema, contextSupplier)) {
-      int seqId = 1;
-      for (HoodieRecord record : records) {
-        GenericRecord avroRecord = (GenericRecord) record.getData().getInsertValue(schema).get();
-        HoodieAvroUtils.addCommitMetadataToRecord(avroRecord, currentInstantTime, String.valueOf(seqId++));
-        HoodieAvroUtils.addHoodieKeyToRecord(avroRecord, record.getRecordKey(), record.getPartitionPath(), fileName);
-        writer.writeAvro(record.getRecordKey(), avroRecord);
-        filter.add(record.getRecordKey());
-      }
+    HoodieFileWriter writer;
+    if (fileName.endsWith(HoodieFileFormat.PARQUET.getFileExtension())) {
+      HoodieAvroWriteSupport writeSupport = new HoodieAvroWriteSupport(
+          new AvroSchemaConverter().convert(schema), schema, filter, false);
+      HoodieAvroParquetConfig config = new HoodieAvroParquetConfig(writeSupport,
+          CompressionCodecName.GZIP,
+          ParquetWriter.DEFAULT_BLOCK_SIZE, ParquetWriter.DEFAULT_PAGE_SIZE, 120 * 1024 * 1024,
+          new Configuration(),
+          Double.parseDouble(HoodieStorageConfig.DEFAULT_STREAM_COMPRESSION_RATIO));
+      writer = new HoodieParquetWriter(currentInstantTime,
+          new Path(Paths.get(basePath, partition, fileName).toString()),
+          config, schema, contextSupplier);
+    } else if (fileName.endsWith(HoodieFileFormat.ORC.getFileExtension())) {
+      HoodieOrcConfig orcConfig = new HoodieOrcConfig(new Configuration(), CompressionKind.ZLIB,
+          64 * 1024 * 1024, 120 * 1024 * 1024, 120 * 1024 * 1024, filter);
+      writer = new HoodieOrcWriter<>(currentInstantTime,
+          new Path(Paths.get(basePath, partition, fileName).toString()),
+          orcConfig, schema, contextSupplier);
+    } else {
+      throw new UnsupportedOperationException("Format for file " + fileName + " is not supported yet.");
     }
+    int seqId = 1;
+    for (HoodieRecord record : records) {
+      GenericRecord avroRecord = (GenericRecord) record.getData().getInsertValue(schema).get();
+      HoodieAvroUtils
+          .addCommitMetadataToRecord(avroRecord, currentInstantTime, String.valueOf(seqId++));
+      HoodieAvroUtils
+          .addHoodieKeyToRecord(avroRecord, record.getRecordKey(), record.getPartitionPath(),
+              fileName);
+      writer.writeAvro(record.getRecordKey(), avroRecord);
+      filter.add(record.getRecordKey());
+    }
+    writer.close();
 
     return this;
   }

@@ -18,6 +18,9 @@
 
 package org.apache.hudi.client;
 
+import static org.apache.hudi.common.model.HoodieFileFormat.ORC;
+import static org.apache.hudi.common.model.HoodieFileFormat.PARQUET;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hudi.avro.model.HoodieCompactionPlan;
 import org.apache.hudi.client.common.HoodieSparkEngineContext;
@@ -110,6 +113,7 @@ public class HoodieReadClient<T extends HoodieRecordPayload> implements Serializ
    */
   public static SparkConf addHoodieSupport(SparkConf conf) {
     conf.set("spark.sql.hive.convertMetastoreParquet", "false");
+    conf.set("spark.sql.hive.convertMetastoreOrc", "false");
     return conf;
   }
 
@@ -144,7 +148,14 @@ public class HoodieReadClient<T extends HoodieRecordPayload> implements Serializ
 
     // record locations might be same for multiple keys, so need a unique list
     Set<String> uniquePaths = new HashSet<>(paths);
-    Dataset<Row> originalDF = sqlContextOpt.get().read().parquet(uniquePaths.toArray(new String[uniquePaths.size()]));
+    Dataset<Row> originalDF = null;
+    if (hoodieTable.getBaseFileFormat().equals(PARQUET)) {
+      originalDF = sqlContextOpt.get().read().parquet(uniquePaths.toArray(new String[uniquePaths.size()]));
+    } else if (hoodieTable.getBaseFileFormat().equals(ORC)) {
+      originalDF = sqlContextOpt.get().read().orc(uniquePaths.toArray(new String[uniquePaths.size()]));
+    } else {
+      throw new UnsupportedOperationException(hoodieTable.getBaseFileFormat() + " format not supported yet.");
+    }
     StructType schema = originalDF.schema();
     JavaPairRDD<HoodieKey, Row> keyRowRDD = originalDF.javaRDD().mapToPair(row -> {
       HoodieKey key = new HoodieKey(row.getAs(HoodieRecord.RECORD_KEY_METADATA_FIELD),

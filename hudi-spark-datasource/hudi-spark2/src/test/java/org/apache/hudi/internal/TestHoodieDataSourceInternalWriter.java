@@ -27,6 +27,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.sources.v2.writer.DataWriter;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -42,6 +43,7 @@ import static org.apache.hudi.testutils.SparkDatasetTestUtils.toInternalRows;
 /**
  * Unit tests {@link HoodieDataSourceInternalWriter}.
  */
+@Disabled("enable after supporting HoodieInternalRowOrcWriter.")
 public class TestHoodieDataSourceInternalWriter extends
     HoodieBulkInsertInternalWriterTestBase {
 

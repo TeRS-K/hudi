@@ -55,6 +55,7 @@ import org.apache.parquet.avro.AvroReadSupport;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.JavaRDD;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -117,6 +118,7 @@ public class TestCopyOnWriteActionExecutor extends HoodieClientTestBase {
 
   // TODO (weiy): Add testcases for crossing file writing.
   @Test
+  @Disabled("enable after HoodieOrcInputFormat is supported.")
   public void testUpdateRecords() throws Exception {
     // Prepare the AvroParquetIO
     HoodieWriteConfig config = makeHoodieClientConfig();
@@ -366,10 +368,11 @@ public class TestCopyOnWriteActionExecutor extends HoodieClientTestBase {
   }
 
   @Test
+  @Disabled("enable after bytes written in ORC batch is properly estimated.")
   public void testFileSizeUpsertRecords() throws Exception {
     HoodieWriteConfig config = makeHoodieClientConfigBuilder().withStorageConfig(HoodieStorageConfig.newBuilder()
-        .parquetMaxFileSize(64 * 1024).hfileMaxFileSize(64 * 1024)
-        .parquetBlockSize(64 * 1024).parquetPageSize(64 * 1024).build()).build();
+        .parquetMaxFileSize(64 * 1024).hfileMaxFileSize(64 * 1024).orcMaxFileSize(64 * 1024)
+        .parquetBlockSize(64 * 1024).parquetPageSize(64 * 1024).orcBlockSize(64 * 1024).orcStripeSize(64 * 1024).build()).build();
     String instantTime = makeNewCommitTime();
     metaClient = HoodieTableMetaClient.reload(metaClient);
     HoodieSparkCopyOnWriteTable table = (HoodieSparkCopyOnWriteTable) HoodieSparkTable.create(config, context, metaClient);
@@ -406,7 +409,7 @@ public class TestCopyOnWriteActionExecutor extends HoodieClientTestBase {
     Schema schema = getSchemaFromResource(TestCopyOnWriteActionExecutor.class, "/testDataGeneratorSchema.txt");
     HoodieWriteConfig config = HoodieWriteConfig.newBuilder().withPath(basePath).withSchema(schema.toString())
             .withStorageConfig(HoodieStorageConfig.newBuilder()
-                .parquetMaxFileSize(1000 * 1024).hfileMaxFileSize(1000 * 1024).build()).build();
+                .parquetMaxFileSize(1000 * 1024).hfileMaxFileSize(1000 * 1024).orcMaxFileSize(1000 * 1024).build()).build();
     metaClient = HoodieTableMetaClient.reload(metaClient);
     HoodieSparkCopyOnWriteTable table = (HoodieSparkCopyOnWriteTable) HoodieSparkTable.create(config, context, metaClient);
     String instantTime = "000";
